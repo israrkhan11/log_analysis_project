@@ -1,0 +1,97 @@
+import re
+from collections import Counter
+
+def parse_log_file(file_path):
+    ip_addresses = []
+    endpoints = []
+    failed_logins = []
+
+    try:
+        with open(file_path, 'r') as file:
+            for line in file:
+                ip_match = re.search(r'(\d+\.\d+\.\d+\.\d+)', line)
+                if ip_match:
+                    ip_addresses.append(ip_match.group(1))
+
+                endpoint_match = re.search(r'\"(?:GET|POST|PUT|DELETE)\s(\/\S+)', line)
+                if endpoint_match:
+                    endpoints.append(endpoint_match.group(1))
+
+                # Regex to match 401 or any failed login message like "Invalid credentials" or "Failed"
+                failed_login_match = re.search(r'401\s|Invalid\scredentials|Forbidden|Failed', line)
+                if failed_login_match:
+                    print(f"Failed login attempt detected: {line}")  # Debugging line to see failed logins
+                    failed_logins.append(ip_match.group(1))
+
+    except FileNotFoundError:
+        print(f"Error: File not found at {file_path}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+    return ip_addresses, endpoints, failed_logins
+
+def count_requests_per_ip(ip_addresses):
+    ip_count = Counter(ip_addresses)
+    sorted_ip_count = ip_count.most_common()
+    return sorted_ip_count
+
+def count_requests_per_endpoint(endpoints):
+    endpoint_count = Counter(endpoints)
+    sorted_endpoint_count = endpoint_count.most_common()
+    return sorted_endpoint_count
+
+def count_failed_logins(failed_logins):
+    failed_login_count = Counter(failed_logins)
+    print("Failed Login Counts:")  # Debugging line to check the failed login counts
+    for ip, count in failed_login_count.items():
+        print(f"{ip}: {count}")
+    return failed_login_count
+
+def detect_suspicious_activity(failed_login_count, threshold=3):  # Adjust threshold as needed
+    suspicious_activity = [
+        (ip, count) for ip, count in failed_login_count.items() if count >= threshold
+    ]
+    return suspicious_activity
+
+
+def display_ip_requests(sorted_ip_count):
+    print(f"{'IP Address':<20} {'Request Count'}")
+    print("-" * 40)
+    for ip, count in sorted_ip_count:
+        print(f"{ip:<20} {count}")
+
+def display_most_frequent_endpoint(sorted_endpoint_count):
+    if sorted_endpoint_count:
+        most_accessed = sorted_endpoint_count[0]
+        print(f"\nMost Frequently Accessed Endpoint:")
+        print(f"{most_accessed[0]} (Accessed {most_accessed[1]} times)")
+    else:
+        print("No endpoints found.")
+
+def display_suspicious_activity(suspicious_activity):
+    if suspicious_activity:
+        print("\nSuspicious Activity Detected:")
+        print(f"{'IP Address':<20} {'Failed Login Attempts'}")
+        print("-" * 40)
+        for ip, count in suspicious_activity:
+            print(f"{ip:<20} {count}")
+    else:
+        print("\nNo suspicious activity detected.")
+
+def main():
+    file_path = r'C:\Users\PC VISION\vrv assignment\file_log.log'
+
+    ip_addresses, endpoints, failed_logins = parse_log_file(file_path)
+    sorted_ip_count = count_requests_per_ip(ip_addresses)
+    sorted_endpoint_count = count_requests_per_endpoint(endpoints)
+    failed_login_count = count_failed_logins(failed_logins)
+    suspicious_activity = detect_suspicious_activity(failed_login_count, threshold=3)  # Test with a low threshold
+
+    print("IP Address Request Count:")
+    display_ip_requests(sorted_ip_count)
+
+    display_most_frequent_endpoint(sorted_endpoint_count)
+    display_suspicious_activity(suspicious_activity)
+
+if __name__ == "__main__":
+    main()
